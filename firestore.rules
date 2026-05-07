@@ -69,6 +69,28 @@ service cloud.firestore {
         (!data.keys().hasAny(['promotedOpportunityId']) || (data.promotedOpportunityId is string && data.promotedOpportunityId.size() <= 128));
     }
 
+    function isValidHiddenSignalUpdate(data) {
+      return data.keys().hasAll(['id', 'userId', 'propertyAddress', 'tags', 'notes', 'source', 'detectedAt', 'signalType', 'title', 'description', 'severity', 'status']) &&
+        data.size() >= 12 && data.size() <= 20 &&
+        data.id is string && data.id.size() <= 128 &&
+        data.userId is string && data.userId == request.auth.uid &&
+        data.propertyAddress is string && data.propertyAddress.size() <= 500 &&
+        data.tags is list && data.tags.size() <= 50 &&
+        data.notes is string && data.notes.size() <= 5000 &&
+        data.source is string && data.source.size() <= 50 &&
+        (!data.keys().hasAny(['originType']) || data.originType in ['lead', 'opportunity', 'signal', 'map']) &&
+        data.detectedAt is string && data.detectedAt.size() <= 50 &&
+        data.signalType is string && data.signalType.size() <= 100 &&
+        data.title is string && data.title.size() <= 200 &&
+        data.description is string && data.description.size() <= 5000 &&
+        data.severity in ['low', 'medium', 'high', 'critical'] &&
+        data.status in ['new', 'reviewed', 'promoted', 'dismissed'] &&
+        (!data.keys().hasAny(['snapshotId']) || (data.snapshotId is string && data.snapshotId.size() <= 128)) &&
+        (!data.keys().hasAny(['relatedLeadId']) || (data.relatedLeadId is string && data.relatedLeadId.size() <= 128)) &&
+        (!data.keys().hasAny(['relatedOpportunityId']) || (data.relatedOpportunityId is string && data.relatedOpportunityId.size() <= 128)) &&
+        (!data.keys().hasAny(['promotedOpportunityId']) || (data.promotedOpportunityId is string && data.promotedOpportunityId.size() <= 128));
+    }
+
     function isValidOutreachDraft(data) {
       return data.keys().hasAll(['id', 'userId', 'propertyAddress', 'tags', 'notes', 'source', 'originType', 'originId', 'channel', 'status', 'subject', 'message', 'createdAt', 'updatedAt']) &&
         data.size() >= 14 && data.size() <= 18 &&
@@ -183,7 +205,7 @@ service cloud.firestore {
         allow get: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(signalId);
         allow list: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid;
         allow create: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(signalId) && isValidHiddenSignal(incoming());
-        allow update: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(signalId) && isValidHiddenSignal(incoming()) && incoming().userId == existing().userId && incoming().detectedAt == existing().detectedAt;
+        allow update: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(signalId) && (isValidHiddenSignal(incoming()) || isValidHiddenSignalUpdate(incoming())) && incoming().userId == existing().userId && incoming().detectedAt == existing().detectedAt;
         allow delete: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(signalId);
       }
 

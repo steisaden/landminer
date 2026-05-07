@@ -349,13 +349,13 @@ export const useAppStore = create<AppState>()((set, get) => ({
     const id = uuidv4();
     const geocode = signal.lat && signal.lng && signal.geohash ? null : await geocodeAddress(signal.propertyAddress);
     const savedAt = new Date().toISOString();
-    const opportunity: Opportunity = {
+    const opportunity = stripUndefinedFields({
       id,
       userId,
       propertyAddress: signal.propertyAddress,
       tags: signal.tags || [],
       opportunityScore: Math.max(0, Math.min(100, signal.severity === "critical" ? 95 : signal.severity === "high" ? 80 : signal.severity === "medium" ? 65 : 50)),
-      source: signal.source === "lead" ? "lead" : "signal",
+      source: (signal.source === "lead" ? "lead" : "signal") as DiscoverySource,
       notes: [signal.title, signal.description, signal.notes].filter(Boolean).join("\n\n"),
       savedAt,
       signalId: signal.id,
@@ -363,8 +363,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
       ...(signal.lat !== undefined ? { lat: signal.lat } : geocode ? { lat: geocode.lat } : {}),
       ...(signal.lng !== undefined ? { lng: signal.lng } : geocode ? { lng: geocode.lng } : {}),
       ...(signal.geohash ? { geohash: signal.geohash } : geocode ? { geohash: geocode.hash } : {}),
-    };
-
+    }) as Opportunity;
     const updatedSignal: HiddenSignal = {
       ...signal,
       status: "promoted",
@@ -398,7 +397,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
     const geocode = signal.lat && signal.lng && signal.geohash ? null : await geocodeAddress(signal.propertyAddress);
     const now = new Date().toISOString();
 
-    const lead: Lead = {
+    const lead = stripUndefinedFields({
       id,
       userId,
       sellerName: "PUBLIC RECORD OWNER",
@@ -428,7 +427,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
       ...(signal.lat !== undefined ? { lat: signal.lat } : geocode ? { lat: geocode.lat } : {}),
       ...(signal.lng !== undefined ? { lng: signal.lng } : geocode ? { lng: geocode.lng } : {}),
       ...(signal.geohash ? { geohash: signal.geohash } : geocode ? { geohash: geocode.hash } : {}),
-    };
+    }) as Lead;
 
     const updatedSignal: HiddenSignal = {
       ...signal,
