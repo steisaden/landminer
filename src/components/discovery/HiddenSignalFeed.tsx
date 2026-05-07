@@ -124,7 +124,7 @@ function HiddenSignalFeedBody({
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-80">
             <DropdownMenuLabel>Record type</DropdownMenuLabel>
-            {availableKinds.map((kind) => (
+            {DEFAULT_KINDS.map((kind) => (
               <DropdownMenuCheckboxItem
                 key={kind}
                 checked={selectedKinds.includes(kind)}
