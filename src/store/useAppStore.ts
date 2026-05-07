@@ -18,6 +18,10 @@ import { auth, db, userCollectionPath } from "../lib/firebase";
 import { geocodeAddress } from "../lib/geocoding";
 import { handleFirestoreError, OperationType } from "../lib/firestore-errors";
 
+function stripUndefinedFields<T extends Record<string, unknown>>(value: T): T {
+  return Object.fromEntries(Object.entries(value).filter(([, fieldValue]) => fieldValue !== undefined)) as T;
+}
+
 type SavePropertySnapshotInput = Omit<
   PropertySnapshot,
   "id" | "userId" | "capturedAt" | "tags" | "notes" | "source"
@@ -312,7 +316,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
     const id = uuidv4();
     const geocode = signalData.lat && signalData.lng && signalData.geohash ? null : await geocodeAddress(signalData.propertyAddress);
     const detectedAt = new Date().toISOString();
-    const signal: HiddenSignal = {
+    const signal: HiddenSignal = stripUndefinedFields({
       ...signalData,
       id,
       userId,
@@ -324,7 +328,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
       ...(signalData.lat !== undefined ? { lat: signalData.lat } : geocode ? { lat: geocode.lat } : {}),
       ...(signalData.lng !== undefined ? { lng: signalData.lng } : geocode ? { lng: geocode.lng } : {}),
       ...(signalData.geohash ? { geohash: signalData.geohash } : geocode ? { geohash: geocode.hash } : {}),
-    };
+    });
 
     set({ hiddenSignals: [signal, ...hiddenSignals] });
 
