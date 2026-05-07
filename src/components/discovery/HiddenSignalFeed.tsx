@@ -3,8 +3,22 @@ import { AlertTriangle, Filter, MapPin, Sparkles } from "lucide-react";
 import { Card, CardContent } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { PropertySnapshotCard } from "./PropertySnapshotCard";
-import { buildHiddenSignalFeed, type HiddenSignalFeedItem, type HiddenSignalFeedGroup } from "../../lib/hidden-signals";
+import {
+  buildHiddenSignalFeed,
+  type HiddenSignalFeedItem,
+  type HiddenSignalFeedGroup,
+  type HiddenSignalFeedKind,
+} from "../../lib/hidden-signals";
 import type { HiddenSignal, Opportunity } from "../../types";
 import { cn } from "../../lib/utils";
 
@@ -21,6 +35,20 @@ interface HiddenSignalFeedProps {
   onViewAll?: () => void;
 }
 
+const KIND_LABELS: Record<HiddenSignalFeedKind, string> = {
+  signal: "Hidden signals",
+  opportunity: "Opportunities",
+};
+
+const DEFAULT_KINDS: HiddenSignalFeedKind[] = ["signal", "opportunity"];
+const DEFAULT_CATEGORIES: HiddenSignalFeedGroup["key"][] = [
+  "vacancy",
+  "code_violation",
+  "distressed_owner",
+  "hot_zone",
+  "other",
+];
+
 function HiddenSignalFeedBody({
   groups,
   compact = false,
@@ -34,58 +62,123 @@ function HiddenSignalFeedBody({
   onConvertToLead?: (item: HiddenSignalFeedItem) => void;
   onInspect?: (item: HiddenSignalFeedItem) => void;
 }) {
-  const [selectedCategory, setSelectedCategory] = useState<"all" | HiddenSignalFeedGroup["key"]>("all");
+  const [selectedKinds, setSelectedKinds] = useState<HiddenSignalFeedKind[]>(DEFAULT_KINDS);
+  const [selectedCategories, setSelectedCategories] = useState<HiddenSignalFeedGroup["key"][]>(DEFAULT_CATEGORIES);
 
-  const visibleGroups = useMemo(() => {
-    if (selectedCategory === "all") return groups;
-    return groups.filter((group) => group.key === selectedCategory);
-  }, [groups, selectedCategory]);
+  const filteredGroups = useMemo(() => {
+    return groups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => selectedKinds.includes(item.kind) && selectedCategories.includes(group.key)),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [groups, selectedCategories, selectedKinds]);
+
+  const activeFilterCount =
+    (selectedKinds.length === DEFAULT_KINDS.length ? 0 : selectedKinds.length) +
+    (selectedCategories.length === DEFAULT_CATEGORIES.length ? 0 : selectedCategories.length);
 
   if (groups.length === 0) return null;
 
-  if (visibleGroups.length === 0) {
+  if (filteredGroups.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 py-8 text-center text-sm text-slate-500">
-        No signals in this group yet.
+        No signals match the selected filters.
       </div>
     );
   }
 
+  const toggleKind = (kind: HiddenSignalFeedKind, checked: boolean) => {
+    setSelectedKinds((current) => {
+      if (checked) {
+        return current.includes(kind) ? current : [...current, kind];
+      }
+      return current.filter((value) => value !== kind);
+    });
+  };
+
+  const toggleCategory = (category: HiddenSignalFeedGroup["key"], checked: boolean) => {
+    setSelectedCategories((current) => {
+      if (checked) {
+        return current.includes(category) ? current : [...current, category];
+      }
+      return current.filter((value) => value !== category);
+    });
+  };
+
+  const resetFilters = () => {
+    setSelectedKinds(DEFAULT_KINDS);
+    setSelectedCategories(DEFAULT_CATEGORIES);
+  };
+
   return (
     <>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant={selectedCategory === "all" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSelectedCategory("all")}
-          className="h-8 gap-2"
-        >
-          <Filter className="h-3.5 w-3.5" />
-          All
-          <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
-            {groups.reduce((sum, group) => sum + group.items.length, 0)}
-          </Badge>
-        </Button>
-        {groups.map((group) => (
-          <Button
-            key={group.key}
-            type="button"
-            variant={selectedCategory === group.key ? "default" : "outline"}
-            size="sm"
-            onClick={() => setSelectedCategory(group.key)}
-            className="h-8 gap-2"
-          >
-            {group.label}
+      <div className="flex flex-wrap items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger className="inline-flex h-8 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50">
+            <Filter className="h-3.5 w-3.5" />
+            Filters
             <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
-              {group.items.length}
+              {activeFilterCount || "All"}
             </Badge>
-          </Button>
-        ))}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-80">
+            <DropdownMenuLabel>Record type</DropdownMenuLabel>
+            {availableKinds.map((kind) => (
+              <DropdownMenuCheckboxItem
+                key={kind}
+                checked={selectedKinds.includes(kind)}
+                closeOnClick={false}
+                onCheckedChange={(checked) => toggleKind(kind, checked)}
+              >
+                <span>{KIND_LABELS[kind]}</span>
+              </DropdownMenuCheckboxItem>
+            ))}
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuLabel>Signal category</DropdownMenuLabel>
+            {groups.map((group) => (
+              <DropdownMenuCheckboxItem
+                key={group.key}
+                checked={selectedCategories.includes(group.key)}
+                closeOnClick={false}
+                onCheckedChange={(checked) => toggleCategory(group.key, checked)}
+              >
+                <span>{group.label}</span>
+                <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-[10px]">
+                  {group.items.length}
+                </Badge>
+              </DropdownMenuCheckboxItem>
+            ))}
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem onClick={resetFilters} closeOnClick>
+              Reset filters
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="flex flex-wrap gap-2 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+          {selectedKinds.map((kind) => (
+            <span key={kind} className="rounded-full bg-white px-2.5 py-1 shadow-sm ring-1 ring-slate-200">
+              {KIND_LABELS[kind]}
+            </span>
+          ))}
+          {selectedCategories.map((category) => {
+            const group = groups.find((entry) => entry.key === category);
+            return group ? (
+              <span key={category} className="rounded-full bg-white px-2.5 py-1 shadow-sm ring-1 ring-slate-200">
+                {group.label}
+              </span>
+            ) : null;
+          })}
+        </div>
       </div>
 
       <div className="space-y-5">
-        {visibleGroups.map((group) => {
+        {filteredGroups.map((group) => {
           const items = group.items.slice(0, compact ? 2 : 3);
 
           return (
