@@ -7,6 +7,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -123,34 +124,38 @@ function HiddenSignalFeedBody({
             </Badge>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-80">
-            <DropdownMenuLabel>Record type</DropdownMenuLabel>
-            {DEFAULT_KINDS.map((kind) => (
-              <DropdownMenuCheckboxItem
-                key={kind}
-                checked={selectedKinds.includes(kind)}
-                closeOnClick={false}
-                onCheckedChange={(checked) => toggleKind(kind, checked)}
-              >
-                <span>{KIND_LABELS[kind]}</span>
-              </DropdownMenuCheckboxItem>
-            ))}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Record type</DropdownMenuLabel>
+              {DEFAULT_KINDS.map((kind) => (
+                <DropdownMenuCheckboxItem
+                  key={kind}
+                  checked={selectedKinds.includes(kind)}
+                  closeOnClick={false}
+                  onCheckedChange={(checked) => toggleKind(kind, checked)}
+                >
+                  <span>{KIND_LABELS[kind]}</span>
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuGroup>
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuLabel>Signal category</DropdownMenuLabel>
-            {groups.map((group) => (
-              <DropdownMenuCheckboxItem
-                key={group.key}
-                checked={selectedCategories.includes(group.key)}
-                closeOnClick={false}
-                onCheckedChange={(checked) => toggleCategory(group.key, checked)}
-              >
-                <span>{group.label}</span>
-                <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-[10px]">
-                  {group.items.length}
-                </Badge>
-              </DropdownMenuCheckboxItem>
-            ))}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Signal category</DropdownMenuLabel>
+              {groups.map((group) => (
+                <DropdownMenuCheckboxItem
+                  key={group.key}
+                  checked={selectedCategories.includes(group.key)}
+                  closeOnClick={false}
+                  onCheckedChange={(checked) => toggleCategory(group.key, checked)}
+                >
+                  <span>{group.label}</span>
+                  <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-[10px]">
+                    {group.items.length}
+                  </Badge>
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuGroup>
 
             <DropdownMenuSeparator />
 
