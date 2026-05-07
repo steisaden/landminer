@@ -377,10 +377,8 @@ export const useAppStore = create<AppState>()((set, get) => ({
 
     try {
       await setDoc(doc(db, `${userCollectionPath(userId, "opportunities")}/${id}`), opportunity);
-      await updateDoc(doc(db, `${userCollectionPath(userId, "hiddenSignals")}/${signalId}`), {
-        status: "promoted",
-        promotedOpportunityId: id,
-      });
+      await deleteDoc(doc(db, `${userCollectionPath(userId, "hiddenSignals")}/${signalId}`));
+      await setDoc(doc(db, `${userCollectionPath(userId, "hiddenSignals")}/${signalId}`), updatedSignal);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `${userCollectionPath(userId, "hiddenSignals")}/${signalId}`);
     }
@@ -442,10 +440,8 @@ export const useAppStore = create<AppState>()((set, get) => ({
 
     try {
       await setDoc(doc(db, `${userCollectionPath(userId, "leads")}/${id}`), lead);
-      await updateDoc(doc(db, `${userCollectionPath(userId, "hiddenSignals")}/${signalId}`), {
-        status: "reviewed",
-        relatedLeadId: id,
-      });
+      await deleteDoc(doc(db, `${userCollectionPath(userId, "hiddenSignals")}/${signalId}`));
+      await setDoc(doc(db, `${userCollectionPath(userId, "hiddenSignals")}/${signalId}`), updatedSignal);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `${userCollectionPath(userId, "hiddenSignals")}/${signalId}`);
     }
