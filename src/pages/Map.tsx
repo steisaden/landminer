@@ -70,6 +70,26 @@ export default function MapPage() {
   );
   const [zoom, setZoom] = useState(initialLat && initialLng ? 14 : 4);
 
+  useEffect(() => {
+    const lat = searchParams.get("lat");
+    const lng = searchParams.get("lng");
+    const radiusParam = searchParams.get("radius");
+
+    if (lat && lng) {
+      const nextCenter: [number, number] = [parseFloat(lat), parseFloat(lng)];
+      setCurrentCenter(nextCenter);
+      setZoom(14);
+      setRadius(radiusParam || "5");
+      return;
+    }
+
+    if (searchParams.toString() === "") {
+      setCurrentCenter(null);
+      setZoom(4);
+      setRadius("all");
+    }
+  }, [searchParams]);
+
   const allItemsRaw = [
     ...leads.filter((l) => l.lat !== undefined && l.lng !== undefined).map((l) => ({ ...l, type: 'lead' as const })),
     ...opportunities.filter((o) => o.lat !== undefined && o.lng !== undefined).map((o) => ({ ...o, type: 'opportunity' as const }))
