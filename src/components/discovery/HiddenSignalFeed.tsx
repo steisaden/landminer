@@ -16,6 +16,9 @@ import {
 import { PropertySnapshotCard } from "./PropertySnapshotCard";
 import {
   buildHiddenSignalFeed,
+  DEFAULT_HIDDEN_SIGNAL_FEED_FILTERS,
+  filterHiddenSignalFeedGroups,
+  type HiddenSignalFeedFilters,
   type HiddenSignalFeedItem,
   type HiddenSignalFeedGroup,
   type HiddenSignalFeedKind,
@@ -30,6 +33,8 @@ interface HiddenSignalFeedProps {
   className?: string;
   title?: string;
   description?: string;
+  filters?: HiddenSignalFeedFilters;
+  onFiltersChange?: (filters: HiddenSignalFeedFilters) => void;
   onSaveOpportunity?: (item: HiddenSignalFeedItem) => void;
   onConvertToLead?: (item: HiddenSignalFeedItem) => void;
   onInspect?: (item: HiddenSignalFeedItem) => void;
@@ -41,76 +46,82 @@ const KIND_LABELS: Record<HiddenSignalFeedKind, string> = {
   opportunity: "Opportunities",
 };
 
-const DEFAULT_KINDS: HiddenSignalFeedKind[] = ["signal", "opportunity"];
-const DEFAULT_CATEGORIES: HiddenSignalFeedGroup["key"][] = [
-  "vacancy",
-  "code_violation",
-  "distressed_owner",
-  "hot_zone",
-  "other",
-];
 
 function HiddenSignalFeedBody({
   groups,
   compact = false,
+  filters,
+  onFiltersChange,
   onSaveOpportunity,
   onConvertToLead,
   onInspect,
 }: {
   groups: HiddenSignalFeedGroup[];
   compact?: boolean;
+  filters?: HiddenSignalFeedFilters;
+  onFiltersChange?: (filters: HiddenSignalFeedFilters) => void;
   onSaveOpportunity?: (item: HiddenSignalFeedItem) => void;
   onConvertToLead?: (item: HiddenSignalFeedItem) => void;
   onInspect?: (item: HiddenSignalFeedItem) => void;
 }) {
-  const [selectedKinds, setSelectedKinds] = useState<HiddenSignalFeedKind[]>(DEFAULT_KINDS);
-  const [selectedCategories, setSelectedCategories] = useState<HiddenSignalFeedGroup["key"][]>(DEFAULT_CATEGORIES);
+  const [selectedKinds, setSelectedKinds] = useState<HiddenSignalFeedKind[]>(DEFAULT_HIDDEN_SIGNAL_FEED_FILTERS.kinds);
+  const [selectedCategories, setSelectedCategories] = useState<HiddenSignalFeedGroup["key"][]>(DEFAULT_HIDDEN_SIGNAL_FEED_FILTERS.categories);
 
-  const filteredGroups = useMemo(() => {
-    return groups
-      .map((group) => ({
-        ...group,
-        items: group.items.filter((item) => selectedKinds.includes(item.kind) && selectedCategories.includes(group.key)),
-      }))
-      .filter((group) => group.items.length > 0);
-  }, [groups, selectedCategories, selectedKinds]);
+  const activeFilters = filters ?? {
+    kinds: selectedKinds,
+    categories: selectedCategories,
+  };
+
+  const updateFilters = (updater: (current: HiddenSignalFeedFilters) => HiddenSignalFeedFilters) => {
+    const nextFilters = updater(activeFilters);
+
+    if (onFiltersChange) {
+      onFiltersChange(nextFilters);
+      return;
+    }
+
+    setSelectedKinds(nextFilters.kinds);
+    setSelectedCategories(nextFilters.categories);
+  };
+
+  const filteredGroups = useMemo(() => filterHiddenSignalFeedGroups(groups, activeFilters), [groups, activeFilters]);
 
   const activeFilterCount =
-    (selectedKinds.length === DEFAULT_KINDS.length ? 0 : selectedKinds.length) +
-    (selectedCategories.length === DEFAULT_CATEGORIES.length ? 0 : selectedCategories.length);
+    (activeFilters.kinds.length === DEFAULT_HIDDEN_SIGNAL_FEED_FILTERS.kinds.length ? 0 : activeFilters.kinds.length) +
+    (activeFilters.categories.length === DEFAULT_HIDDEN_SIGNAL_FEED_FILTERS.categories.length ? 0 : activeFilters.categories.length);
+  const isDefaultFilters =
+    activeFilters.kinds.length === DEFAULT_HIDDEN_SIGNAL_FEED_FILTERS.kinds.length &&
+    activeFilters.categories.length === DEFAULT_HIDDEN_SIGNAL_FEED_FILTERS.categories.length;
 
   if (groups.length === 0) return null;
 
-  if (filteredGroups.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 py-8 text-center text-sm text-slate-500">
-        No signals match the selected filters.
-      </div>
-    );
-  }
-
   const toggleKind = (kind: HiddenSignalFeedKind, checked: boolean) => {
-    setSelectedKinds((current) => {
-      if (checked) {
-        return current.includes(kind) ? current : [...current, kind];
-      }
-      return current.filter((value) => value !== kind);
-    });
+    updateFilters((current) => ({
+      ...current,
+      kinds: checked
+        ? current.kinds.includes(kind)
+          ? current.kinds
+          : [...current.kinds, kind]
+        : current.kinds.filter((value) => value !== kind),
+    }));
   };
 
   const toggleCategory = (category: HiddenSignalFeedGroup["key"], checked: boolean) => {
-    setSelectedCategories((current) => {
-      if (checked) {
-        return current.includes(category) ? current : [...current, category];
-      }
-      return current.filter((value) => value !== category);
-    });
+    updateFilters((current) => ({
+      ...current,
+      categories: checked
+        ? current.categories.includes(category)
+          ? current.categories
+          : [...current.categories, category]
+        : current.categories.filter((value) => value !== category),
+    }));
   };
 
   const resetFilters = () => {
-    setSelectedKinds(DEFAULT_KINDS);
-    setSelectedCategories(DEFAULT_CATEGORIES);
+    updateFilters(() => DEFAULT_HIDDEN_SIGNAL_FEED_FILTERS);
   };
+
+  const hasVisibleItems = filteredGroups.length > 0;
 
   return (
     <>
@@ -120,16 +131,16 @@ function HiddenSignalFeedBody({
             <Filter className="h-3.5 w-3.5" />
             Filters
             <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
-              {activeFilterCount || "All"}
+              {isDefaultFilters ? "All" : activeFilterCount}
             </Badge>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-80">
             <DropdownMenuGroup>
               <DropdownMenuLabel>Record type</DropdownMenuLabel>
-              {DEFAULT_KINDS.map((kind) => (
+              {DEFAULT_HIDDEN_SIGNAL_FEED_FILTERS.kinds.map((kind) => (
                 <DropdownMenuCheckboxItem
                   key={kind}
-                  checked={selectedKinds.includes(kind)}
+                  checked={activeFilters.kinds.includes(kind)}
                   closeOnClick={false}
                   onCheckedChange={(checked) => toggleKind(kind, checked)}
                 >
@@ -145,7 +156,7 @@ function HiddenSignalFeedBody({
               {groups.map((group) => (
                 <DropdownMenuCheckboxItem
                   key={group.key}
-                  checked={selectedCategories.includes(group.key)}
+                  checked={activeFilters.categories.includes(group.key)}
                   closeOnClick={false}
                   onCheckedChange={(checked) => toggleCategory(group.key, checked)}
                 >
@@ -166,12 +177,12 @@ function HiddenSignalFeedBody({
         </DropdownMenu>
 
         <div className="flex flex-wrap gap-2 text-[11px] font-medium uppercase tracking-wide text-slate-500">
-          {selectedKinds.map((kind) => (
+          {activeFilters.kinds.map((kind) => (
             <span key={kind} className="rounded-full bg-white px-2.5 py-1 shadow-sm ring-1 ring-slate-200">
               {KIND_LABELS[kind]}
             </span>
           ))}
-          {selectedCategories.map((category) => {
+          {activeFilters.categories.map((category) => {
             const group = groups.find((entry) => entry.key === category);
             return group ? (
               <span key={category} className="rounded-full bg-white px-2.5 py-1 shadow-sm ring-1 ring-slate-200">
@@ -181,6 +192,12 @@ function HiddenSignalFeedBody({
           })}
         </div>
       </div>
+
+      {!hasVisibleItems ? (
+        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 py-8 text-center text-sm text-slate-500">
+          No signals match the selected filters.
+        </div>
+      ) : null}
 
       <div className="space-y-5">
         {filteredGroups.map((group) => {
@@ -268,6 +285,8 @@ export function HiddenSignalFeed({
   className,
   title = "Hidden Signal Feed",
   description = "Ranked civic and public-data signals, grouped by pattern instead of raw recency.",
+  filters,
+  onFiltersChange,
   onSaveOpportunity,
   onConvertToLead,
   onInspect,
@@ -315,6 +334,8 @@ export function HiddenSignalFeed({
           {groups.length > 0 ? (
             <HiddenSignalFeedBody
               groups={groups}
+              filters={filters}
+              onFiltersChange={onFiltersChange}
               compact={compact}
               onSaveOpportunity={onSaveOpportunity}
               onConvertToLead={onConvertToLead}

@@ -31,6 +31,28 @@ export interface HiddenSignalFeedGroup {
   score: number;
 }
 
+export interface HiddenSignalFeedFilters {
+  kinds: HiddenSignalFeedKind[];
+  categories: HiddenSignalFeedCategory[];
+}
+
+export const DEFAULT_HIDDEN_SIGNAL_FEED_FILTERS: HiddenSignalFeedFilters = {
+  kinds: ["signal", "opportunity"],
+  categories: ["vacancy", "code_violation", "distressed_owner", "hot_zone", "other"],
+};
+
+export function filterHiddenSignalFeedGroups(
+  groups: HiddenSignalFeedGroup[],
+  filters: HiddenSignalFeedFilters,
+) {
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => filters.kinds.includes(item.kind) && filters.categories.includes(group.key)),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
 export interface HiddenSignalDraft {
   propertyAddress: string;
   tags?: string[];

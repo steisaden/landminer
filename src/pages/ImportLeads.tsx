@@ -70,15 +70,15 @@ export default function ImportLeads() {
                const chunk = toImport.slice(i, i + batchSize);
                const scoredChunk = await scrubLeadsBatch(chunk);
                for (const lead of scoredChunk) {
-                  await addLead(lead);
-                  count++;
+                  const result = await addLead(lead);
+                  if (result.created) count++;
                }
            }
            toast.dismiss("ai-scrub");
         } else {
            for (const lead of toImport) {
-              await addLead(lead);
-              count++;
+              const result = await addLead(lead);
+              if (result.created) count++;
            }
         }
         

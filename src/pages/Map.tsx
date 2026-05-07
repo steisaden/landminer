@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
@@ -16,7 +16,13 @@ import { toast } from "sonner";
 import { HeatmapLayer } from "../components/HeatmapLayer";
 import { PropertySnapshotCard } from "../components/discovery/PropertySnapshotCard";
 import { HiddenSignalFeed } from "../components/discovery/HiddenSignalFeed";
-import type { HiddenSignalFeedItem } from "../lib/hidden-signals";
+import {
+  buildHiddenSignalFeed,
+  DEFAULT_HIDDEN_SIGNAL_FEED_FILTERS,
+  filterHiddenSignalFeedGroups,
+  type HiddenSignalFeedFilters,
+  type HiddenSignalFeedItem,
+} from "../lib/hidden-signals";
 import { deleteDoc, doc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 
@@ -61,7 +67,20 @@ export default function MapPage() {
   const [radius, setRadius] = useState<string>(searchParams.get('radius') || "all");
   const [isSearching, setIsSearching] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
-  
+  const [feedFilters, setFeedFilters] = useState<HiddenSignalFeedFilters>(DEFAULT_HIDDEN_SIGNAL_FEED_FILTERS);
+
+  const feedGroups = useMemo(() => buildHiddenSignalFeed(hiddenSignals, opportunities), [hiddenSignals, opportunities]);
+  const visibleFeedGroups = useMemo(() => filterHiddenSignalFeedGroups(feedGroups, feedFilters), [feedGroups, feedFilters]);
+  const visibleFeedItems = useMemo(() => visibleFeedGroups.flatMap((group) => group.items), [visibleFeedGroups]);
+  const visibleOpportunityIds = useMemo(
+    () => new Set(visibleFeedItems.filter((item) => item.kind === "opportunity" && item.opportunity).map((item) => item.opportunity!.id)),
+    [visibleFeedItems],
+  );
+
+  const visibleOpportunityMarkers = opportunities
+    .filter((opportunity) => visibleOpportunityIds.has(opportunity.id) && opportunity.lat !== undefined && opportunity.lng !== undefined)
+    .map((opportunity) => ({ ...opportunity, type: "opportunity" as const }));
+
   const initialLat = searchParams.get('lat');
   const initialLng = searchParams.get('lng');
   
@@ -92,7 +111,7 @@ export default function MapPage() {
 
   const allItemsRaw = [
     ...leads.filter((l) => l.lat !== undefined && l.lng !== undefined).map((l) => ({ ...l, type: 'lead' as const })),
-    ...opportunities.filter((o) => o.lat !== undefined && o.lng !== undefined).map((o) => ({ ...o, type: 'opportunity' as const }))
+    ...visibleOpportunityMarkers,
   ];
 
   let allItems = allItemsRaw;
@@ -247,6 +266,8 @@ export default function MapPage() {
           compact
           title="Hidden Signal Feed"
           description="Ranked civic and public-data signals, grouped by pattern instead of raw recency."
+          filters={feedFilters}
+          onFiltersChange={setFeedFilters}
           onSaveOpportunity={saveSignalAsOpportunity}
           onConvertToLead={convertSignalToLead}
           onInspect={inspectSignalOnMap}

@@ -22,6 +22,29 @@ function stripUndefinedFields<T extends Record<string, unknown>>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, fieldValue]) => fieldValue !== undefined)) as T;
 }
 
+function normalizeLeadIdentity(value?: string | null) {
+  return value?.trim().toLowerCase().replace(/\s+/g, " ") ?? "";
+}
+
+function findDuplicateLead(leads: Lead[], leadData: Omit<Lead, "id" | "createdAt" | "updatedAt" | "followUps" | "activities" | "userId">) {
+  const addressKey = normalizeLeadIdentity(leadData.propertyAddress);
+  const phoneKey = normalizeLeadIdentity(leadData.phone);
+  const signalId = leadData.signalId;
+  const snapshotId = leadData.snapshotId;
+
+  return leads.find((entry) => {
+    if (signalId && entry.signalId === signalId) return true;
+    if (snapshotId && entry.snapshotId === snapshotId) return true;
+
+    const existingAddressKey = normalizeLeadIdentity(entry.propertyAddress);
+    if (addressKey && existingAddressKey && addressKey === existingAddressKey) return true;
+
+    if (!addressKey && phoneKey && normalizeLeadIdentity(entry.phone) === phoneKey) return true;
+
+    return false;
+  });
+}
+
 type SavePropertySnapshotInput = Omit<
   PropertySnapshot,
   "id" | "userId" | "capturedAt" | "tags" | "notes" | "source"
@@ -102,7 +125,7 @@ interface AppState {
   leads: Lead[];
   opportunities: Opportunity[];
   documents: AppDocument[];
-  addLead: (lead: Omit<Lead, "id" | "createdAt" | "updatedAt" | "followUps" | "activities" | "userId">) => Promise<void>;
+  addLead: (lead: Omit<Lead, "id" | "createdAt" | "updatedAt" | "followUps" | "activities" | "userId">) => Promise<{ created: boolean; lead: Lead | null }>;
   updateLead: (id: string, updates: Partial<Lead>) => Promise<void>;
   deleteLead: (id: string) => Promise<void>;
   setOpportunities: (opportunities: Opportunity[]) => void;
@@ -385,19 +408,13 @@ export const useAppStore = create<AppState>()((set, get) => ({
   },
 
   createLeadFromSignal: async (signalId) => {
-    const { userId, hiddenSignals, leads } = get();
+    const { userId, hiddenSignals } = get();
     if (!userId) return;
 
     const signal = hiddenSignals.find((entry) => entry.id === signalId);
     if (!signal) return;
 
-    const id = uuidv4();
-    const geocode = signal.lat && signal.lng && signal.geohash ? null : await geocodeAddress(signal.propertyAddress);
-    const now = new Date().toISOString();
-
-    const lead = stripUndefinedFields({
-      id,
-      userId,
+    const leadResult = await get().addLead({
       sellerName: "PUBLIC RECORD OWNER",
       phone: "",
       propertyAddress: signal.propertyAddress,
@@ -406,40 +423,29 @@ export const useAppStore = create<AppState>()((set, get) => ({
       leadSource: signal.source,
       status: "New Lead",
       notes: [signal.title, signal.description, signal.notes].filter(Boolean).join("\n\n"),
-      createdAt: now,
-      updatedAt: now,
-      followUps: [],
-      activities: [
-        {
-          id: uuidv4(),
-          leadId: id,
-          type: "note",
-          content: `Lead created from ${signal.title}`,
-          timestamp: now,
-        },
-      ],
       tags: [...(signal.tags || []), signal.signalType].filter((tag, index, array) => array.indexOf(tag) === index),
       source: signal.source,
       snapshotId: signal.snapshotId,
       signalId: signal.id,
-      ...(signal.lat !== undefined ? { lat: signal.lat } : geocode ? { lat: geocode.lat } : {}),
-      ...(signal.lng !== undefined ? { lng: signal.lng } : geocode ? { lng: geocode.lng } : {}),
-      ...(signal.geohash ? { geohash: signal.geohash } : geocode ? { geohash: geocode.hash } : {}),
-    }) as Lead;
+      lat: signal.lat,
+      lng: signal.lng,
+      geohash: signal.geohash,
+    });
+
+    const leadId = leadResult.lead?.id;
+    if (!leadId) return;
 
     const updatedSignal: HiddenSignal = {
       ...signal,
       status: "reviewed",
-      relatedLeadId: id,
+      relatedLeadId: leadId,
     };
 
     set({
-      leads: [lead, ...leads],
       hiddenSignals: hiddenSignals.map((entry) => (entry.id === signalId ? updatedSignal : entry)),
     });
 
     try {
-      await setDoc(doc(db, `${userCollectionPath(userId, "leads")}/${id}`), lead);
       await deleteDoc(doc(db, `${userCollectionPath(userId, "hiddenSignals")}/${signalId}`));
       await setDoc(doc(db, `${userCollectionPath(userId, "hiddenSignals")}/${signalId}`), updatedSignal);
     } catch (error) {
@@ -511,8 +517,14 @@ export const useAppStore = create<AppState>()((set, get) => ({
   },
 
   addLead: async (leadData) => {
-    const { userId } = get();
-    if (!userId) return;
+    const { userId, leads } = get();
+    if (!userId) return { created: false, lead: null };
+
+    const duplicateLead = findDuplicateLead(leads, leadData);
+    if (duplicateLead) {
+      return { created: false, lead: duplicateLead };
+    }
+
     const id = uuidv4();
 
     // Geocode to get lat/lng/hash
@@ -543,6 +555,8 @@ export const useAppStore = create<AppState>()((set, get) => ({
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `${userCollectionPath(userId, "leads")}/${id}`);
     }
+
+    return { created: true, lead: newLead };
   },
 
   updateLead: async (id, updates) => {

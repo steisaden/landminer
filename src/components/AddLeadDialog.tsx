@@ -45,11 +45,11 @@ export function AddLeadDialog({ children }: AddLeadDialogProps) {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.sellerName) return;
 
-    addLead({
+    const result = await addLead({
       sellerName: formData.sellerName,
       phone: formData.phone,
       propertyAddress: formData.propertyAddress,
@@ -61,20 +61,24 @@ export function AddLeadDialog({ children }: AddLeadDialogProps) {
       tags: formData.tags,
     });
 
-    toast.success(`${formData.sellerName} added successfully`);
-    setOpen(false);
+    if (result.created) {
+      toast.success(`${formData.sellerName} added successfully`);
+      setOpen(false);
+      setFormData({
+        sellerName: "",
+        phone: "",
+        propertyAddress: "",
+        askingPrice: "",
+        motivation: "",
+        leadSource: "Manual",
+        status: "New Lead",
+        notes: "",
+        tags: [],
+      });
+      return;
+    }
 
-    setFormData({
-      sellerName: "",
-      phone: "",
-      propertyAddress: "",
-      askingPrice: "",
-      motivation: "",
-      leadSource: "Manual",
-      status: "New Lead",
-      notes: "",
-      tags: [],
-    });
+    toast.info("That lead already exists in your inbox.");
   };
 
   return (

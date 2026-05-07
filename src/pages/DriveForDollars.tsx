@@ -38,25 +38,27 @@ export default function DriveForDollars() {
 
     setIsAnalyzing(true);
     try {
-      // preview is already data url
       const analysisJsonStr = await analyzePropertyImage(preview, address);
-      
       const cleanJsonStr = analysisJsonStr.replace(/```json\n?|\n?```/g, "").trim();
       const data = JSON.parse(cleanJsonStr);
 
-      await addLead({
-         sellerName: "Unknown Owner (Needs Skiptrace)",
-         phone: "",
-         propertyAddress: address,
-         askingPrice: null,
-         motivation: data.distressSignals?.join(", ") || "Found via Drive for Dollars",
-         status: "New Lead",
-         leadSource: "Drive for Dollars",
-         tags: ["drive-for-dollars", ...(data.tags || [])],
-         notes: "AI Vision Analysis: " + (data.summary || "")
+      const result = await addLead({
+        sellerName: "Unknown Owner (Needs Skiptrace)",
+        phone: "",
+        propertyAddress: address,
+        askingPrice: null,
+        motivation: data.distressSignals?.join(", ") || "Found via Drive for Dollars",
+        status: "New Lead",
+        leadSource: "Drive for Dollars",
+        tags: ["drive-for-dollars", ...(data.tags || [])],
+        notes: "AI Vision Analysis: " + (data.summary || ""),
       });
 
-      toast.success("Property analyzed and lead created!");
+      if (result.created) {
+        toast.success("Property analyzed and lead created!");
+      } else {
+        toast.info("That lead already exists in your inbox.");
+      }
       navigate("/leads");
     } catch (e) {
       console.error(e);
