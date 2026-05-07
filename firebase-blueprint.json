@@ -1,0 +1,63 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with onboarding settings",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "businessName": { "type": "string" },
+        "focus": { "type": "string" },
+        "followUpStyle": { "type": "string" },
+        "cadence": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "hasCompletedOnboarding": { "type": "boolean" }
+      },
+      "required": ["uid", "email", "businessName", "focus", "followUpStyle", "cadence", "createdAt", "hasCompletedOnboarding"]
+    },
+    "Lead": {
+      "title": "Lead",
+      "description": "Seller lead with bounded followUps array",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "sellerName": { "type": "string" },
+        "phone": { "type": "string" },
+        "propertyAddress": { "type": "string" },
+        "askingPrice": { "type": "number" },
+        "motivation": { "type": "string" },
+        "leadSource": { "type": "string" },
+        "status": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "followUps": {
+          "type": "array",
+          "items": { "$ref": "#/entities/FollowUpReminder" }
+        }
+      },
+      "required": ["userId", "sellerName", "phone", "propertyAddress", "motivation", "leadSource", "status", "notes", "createdAt", "updatedAt", "followUps"]
+    },
+    "FollowUpReminder": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "notes": { "type": "string" },
+        "completed": { "type": "boolean" }
+      },
+      "required": ["id", "dueDate", "completed"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "/users/{userId}/leads/{leadId}": {
+      "schema": { "$ref": "#/entities/Lead" },
+      "description": "User's leads"
+    }
+  }
+}

@@ -1,0 +1,207 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return request.auth.token.email_verified == true; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidUserConfig(data) {
+      return data.keys().hasAll(['uid', 'email', 'businessName', 'focus', 'followUpStyle', 'cadence', 'createdAt', 'hasCompletedOnboarding']) &&
+        data.size() >= 8 && data.size() <= 21 &&
+        data.uid is string && data.uid == request.auth.uid &&
+        data.email is string &&
+        data.businessName is string && data.businessName.size() <= 200 &&
+        data.focus is string && data.focus.size() <= 100 &&
+        data.followUpStyle is string && data.followUpStyle.size() <= 100 &&
+        data.cadence is string && data.cadence.size() <= 100 &&
+        data.createdAt is string && data.createdAt.size() <= 100 &&
+        data.hasCompletedOnboarding is bool &&
+        (!data.keys().hasAny(['gettingStartedDismissed']) || data.gettingStartedDismissed is bool) &&
+        (!data.keys().hasAny(['isPro']) || data.isPro is bool) &&
+        (!data.keys().hasAny(['apiKeys']) || data.apiKeys is map) &&
+        (!data.keys().hasAny(['activeAiProvider']) || data.activeAiProvider is string) &&
+        (!data.keys().hasAny(['selectedModels']) || data.selectedModels is map);
+    }
+
+    function isValidPropertySnapshot(data) {
+      return data.keys().hasAll(['id', 'userId', 'propertyAddress', 'tags', 'notes', 'source', 'originType', 'capturedAt']) &&
+        data.size() >= 8 && data.size() <= 16 &&
+        data.id is string && data.id.size() <= 128 &&
+        data.userId is string && data.userId == request.auth.uid &&
+        data.propertyAddress is string && data.propertyAddress.size() <= 500 &&
+        data.tags is list && data.tags.size() <= 50 &&
+        data.notes is string && data.notes.size() <= 5000 &&
+        data.source is string && data.source.size() <= 50 &&
+        data.originType in ['lead', 'opportunity', 'signal', 'map'] &&
+        data.capturedAt is string && data.capturedAt.size() <= 50 &&
+        (!data.keys().hasAny(['title']) || (data.title is string && data.title.size() <= 200)) &&
+        (!data.keys().hasAny(['opportunityScore']) || (data.opportunityScore is number && data.opportunityScore >= 0 && data.opportunityScore <= 100)) &&
+        (!data.keys().hasAny(['leadId']) || (data.leadId is string && data.leadId.size() <= 128)) &&
+        (!data.keys().hasAny(['opportunityId']) || (data.opportunityId is string && data.opportunityId.size() <= 128)) &&
+        (!data.keys().hasAny(['originId']) || (data.originId is string && data.originId.size() <= 128));
+    }
+
+    function isValidHiddenSignal(data) {
+      return data.keys().hasAll(['id', 'userId', 'propertyAddress', 'tags', 'notes', 'source', 'originType', 'detectedAt', 'signalType', 'title', 'description', 'severity', 'status']) &&
+        data.size() >= 13 && data.size() <= 20 &&
+        data.id is string && data.id.size() <= 128 &&
+        data.userId is string && data.userId == request.auth.uid &&
+        data.propertyAddress is string && data.propertyAddress.size() <= 500 &&
+        data.tags is list && data.tags.size() <= 50 &&
+        data.notes is string && data.notes.size() <= 5000 &&
+        data.source is string && data.source.size() <= 50 &&
+        data.originType in ['lead', 'opportunity', 'signal', 'map'] &&
+        data.detectedAt is string && data.detectedAt.size() <= 50 &&
+        data.signalType is string && data.signalType.size() <= 100 &&
+        data.title is string && data.title.size() <= 200 &&
+        data.description is string && data.description.size() <= 5000 &&
+        data.severity in ['low', 'medium', 'high', 'critical'] &&
+        data.status in ['new', 'reviewed', 'promoted', 'dismissed'] &&
+        (!data.keys().hasAny(['snapshotId']) || (data.snapshotId is string && data.snapshotId.size() <= 128)) &&
+        (!data.keys().hasAny(['relatedLeadId']) || (data.relatedLeadId is string && data.relatedLeadId.size() <= 128)) &&
+        (!data.keys().hasAny(['relatedOpportunityId']) || (data.relatedOpportunityId is string && data.relatedOpportunityId.size() <= 128)) &&
+        (!data.keys().hasAny(['promotedOpportunityId']) || (data.promotedOpportunityId is string && data.promotedOpportunityId.size() <= 128));
+    }
+
+    function isValidOutreachDraft(data) {
+      return data.keys().hasAll(['id', 'userId', 'propertyAddress', 'tags', 'notes', 'source', 'originType', 'originId', 'channel', 'status', 'subject', 'message', 'createdAt', 'updatedAt']) &&
+        data.size() >= 14 && data.size() <= 18 &&
+        data.id is string && data.id.size() <= 128 &&
+        data.userId is string && data.userId == request.auth.uid &&
+        data.propertyAddress is string && data.propertyAddress.size() <= 500 &&
+        data.tags is list && data.tags.size() <= 50 &&
+        data.notes is string && data.notes.size() <= 5000 &&
+        data.source is string && data.source.size() <= 50 &&
+        data.originType in ['lead', 'signal'] &&
+        data.originId is string && data.originId.size() <= 128 &&
+        data.channel in ['sms', 'email', 'call', 'letter'] &&
+        data.status in ['draft', 'queued', 'sent', 'archived'] &&
+        data.subject is string && data.subject.size() <= 250 &&
+        data.message is string && data.message.size() <= 5000 &&
+        data.createdAt is string && data.createdAt.size() <= 50 &&
+        data.updatedAt is string && data.updatedAt.size() <= 50 &&
+        (!data.keys().hasAny(['leadId']) || (data.leadId is string && data.leadId.size() <= 128)) &&
+        (!data.keys().hasAny(['signalId']) || (data.signalId is string && data.signalId.size() <= 128)) &&
+        (!data.keys().hasAny(['lat']) || (data.lat is number)) &&
+        (!data.keys().hasAny(['lng']) || (data.lng is number)) &&
+        (!data.keys().hasAny(['geohash']) || (data.geohash is string && data.geohash.size() <= 20));
+    }
+
+    function isValidLead(data) {
+      return data.keys().hasAll(['id', 'userId', 'sellerName', 'phone', 'propertyAddress', 'motivation', 'leadSource', 'status', 'notes', 'createdAt', 'updatedAt', 'followUps', 'activities']) &&
+        data.size() >= 13 && data.size() <= 20 &&
+        data.id is string && data.id.size() <= 128 &&
+        data.userId is string && data.userId == request.auth.uid &&
+        data.sellerName is string && data.sellerName.size() <= 200 &&
+        data.phone is string && data.phone.size() <= 50 &&
+        data.propertyAddress is string && data.propertyAddress.size() <= 500 &&
+        data.motivation is string && data.motivation.size() <= 1000 &&
+        data.leadSource is string && data.leadSource.size() <= 100 &&
+        data.status is string && data.status.size() <= 100 &&
+        data.notes is string && data.notes.size() <= 5000 &&
+        data.createdAt is string && data.createdAt.size() <= 50 &&
+        data.updatedAt is string && data.updatedAt.size() <= 50 &&
+        data.followUps is list && data.followUps.size() <= 50 &&
+        data.activities is list && data.activities.size() <= 100 &&
+        (!data.keys().hasAny(['askingPrice']) || (data.askingPrice == null || data.askingPrice is number)) &&
+        (!data.keys().hasAny(['lat']) || data.lat is number) &&
+        (!data.keys().hasAny(['lng']) || data.lng is number) &&
+        (!data.keys().hasAny(['geohash']) || (data.geohash is string && data.geohash.size() <= 20)) &&
+        (!data.keys().hasAny(['tags']) || (data.tags is list && data.tags.size() <= 50)) &&
+        (!data.keys().hasAny(['opportunityScore']) || (data.opportunityScore is number && data.opportunityScore >= 0 && data.opportunityScore <= 100)) &&
+        (!data.keys().hasAny(['source']) || (data.source is string && data.source.size() <= 50));
+    }
+
+    function isValidOpportunity(data) {
+      return data.keys().hasAll(['id', 'userId', 'propertyAddress', 'lat', 'lng', 'geohash', 'tags', 'opportunityScore', 'source', 'notes', 'savedAt']) &&
+        data.size() == 11 &&
+        data.id is string && data.id.size() <= 128 &&
+        data.userId is string && data.userId == request.auth.uid &&
+        data.propertyAddress is string && data.propertyAddress.size() <= 500 &&
+        data.lat is number &&
+        data.lng is number &&
+        data.geohash is string && data.geohash.size() <= 20 &&
+        data.tags is list && data.tags.size() <= 50 &&
+        data.opportunityScore is number && data.opportunityScore >= 0 && data.opportunityScore <= 100 &&
+        data.source is string && data.source.size() <= 50 &&
+        data.notes is string && data.notes.size() <= 5000 &&
+        data.savedAt is string && data.savedAt.size() <= 50;
+    }
+
+    function isValidAppDocument(data) {
+      return data.keys().hasAll(['id', 'userId', 'entityId', 'entityType', 'fileName', 'fileUrl', 'fileType', 'sizeBytes', 'uploadedAt']) &&
+        data.size() == 9 &&
+        data.id is string && data.id.size() <= 128 &&
+        data.userId is string && data.userId == request.auth.uid &&
+        data.entityId is string && data.entityId.size() <= 128 &&
+        data.entityType is string && data.entityType.size() <= 50 &&
+        data.fileName is string && data.fileName.size() <= 250 &&
+        data.fileUrl is string && data.fileUrl.size() <= 1000 &&
+        data.fileType is string && data.fileType.size() <= 100 &&
+        data.sizeBytes is number && data.sizeBytes >= 0 &&
+        data.uploadedAt is string && data.uploadedAt.size() <= 50;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid;
+      // We don't need allow list for users
+      allow create: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidUserConfig(incoming());
+      allow update: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidUserConfig(incoming()) && incoming().uid == existing().uid && incoming().email == existing().email && incoming().createdAt == existing().createdAt && incoming().diff(existing()).affectedKeys().hasOnly(['businessName', 'focus', 'followUpStyle', 'cadence', 'hasCompletedOnboarding', 'gettingStartedDismissed', 'isPro', 'apiKeys', 'activeAiProvider', 'selectedModels']);
+      allow delete: if false;
+
+      match /leads/{leadId} {
+        allow get: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(leadId);
+        allow list: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid;
+        allow create: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(leadId) && isValidLead(incoming());
+        allow update: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(leadId) && isValidLead(incoming()) && incoming().userId == existing().userId && incoming().createdAt == existing().createdAt;
+        allow delete: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(leadId);
+      }
+
+      match /opportunities/{opportunityId} {
+        allow get: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(opportunityId);
+        allow list: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid;
+        allow create: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(opportunityId) && isValidOpportunity(incoming());
+        allow update: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(opportunityId) && isValidOpportunity(incoming()) && incoming().userId == existing().userId && incoming().savedAt == existing().savedAt;
+        allow delete: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(opportunityId);
+      }
+
+      match /propertySnapshots/{snapshotId} {
+        allow get: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(snapshotId);
+        allow list: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid;
+        allow create: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(snapshotId) && isValidPropertySnapshot(incoming());
+        allow update: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(snapshotId) && isValidPropertySnapshot(incoming()) && incoming().userId == existing().userId && incoming().capturedAt == existing().capturedAt;
+        allow delete: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(snapshotId);
+      }
+
+      match /hiddenSignals/{signalId} {
+        allow get: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(signalId);
+        allow list: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid;
+        allow create: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(signalId) && isValidHiddenSignal(incoming());
+        allow update: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(signalId) && isValidHiddenSignal(incoming()) && incoming().userId == existing().userId && incoming().detectedAt == existing().detectedAt;
+        allow delete: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(signalId);
+      }
+
+      match /outreachDrafts/{draftId} {
+        allow get: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(draftId);
+        allow list: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid;
+        allow create: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(draftId) && isValidOutreachDraft(incoming());
+        allow update: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(draftId) && isValidOutreachDraft(incoming()) && incoming().userId == existing().userId && incoming().createdAt == existing().createdAt;
+        allow delete: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(draftId);
+      }
+
+      match /documents/{documentId} {
+        allow get: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(documentId);
+        allow list: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid;
+        allow create: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(documentId) && isValidAppDocument(incoming());
+        allow update: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(documentId) && isValidAppDocument(incoming()) && incoming().userId == existing().userId && incoming().uploadedAt == existing().uploadedAt;
+        allow delete: if isSignedIn() && isVerified() && isValidId(userId) && userId == request.auth.uid && isValidId(documentId);
+      }
+    }
+  }
+}
