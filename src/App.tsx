@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Suspense, lazy, useEffect } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { useAppStore } from "./store/useAppStore";
@@ -40,10 +40,50 @@ function RouteMemory({ isAuthenticated, hasCompletedOnboarding }: { isAuthentica
   return null;
 }
 
+function RootGate({
+  isAuthenticated,
+  hasCompletedOnboarding,
+  restorePath,
+}: {
+  isAuthenticated: boolean;
+  hasCompletedOnboarding: boolean;
+  restorePath: string | null;
+}) {
+  const location = useLocation();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!hasCompletedOnboarding) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  if (location.pathname === "/" && restorePath && restorePath !== "/") {
+    return <Navigate to={restorePath} replace />;
+  }
+
+  return <Layout />;
+}
+
 export default function App() {
   const { isAuthenticated, hasCompletedOnboarding } = useAppStore();
-  const resumePath = typeof window !== "undefined" ? sessionStorage.getItem(LAST_ROUTE_KEY) : null;
-  const homePath = resumePath && resumePath !== "/login" && resumePath !== "/onboarding" ? resumePath : "/";
+  const [restorePath, setRestorePath] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const navigationEntry = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    const legacyNavigation = (performance as Performance & { navigation?: { type?: number } }).navigation;
+    const isReload = navigationEntry?.type === "reload" || legacyNavigation?.type === 1;
+
+    if (!isReload) return;
+
+    const resumePath = sessionStorage.getItem(LAST_ROUTE_KEY);
+    if (resumePath && resumePath !== "/login" && resumePath !== "/onboarding") {
+      setRestorePath(resumePath);
+    }
+  }, []);
 
   return (
     <FirebaseProvider>
@@ -55,7 +95,7 @@ export default function App() {
             <Route path="/onboarding" element={isAuthenticated && !hasCompletedOnboarding ? <Onboarding /> : <Navigate to={isAuthenticated ? "/" : "/login"} />} />
 
             {/* Protected Routes */}
-            <Route path="/" element={isAuthenticated && hasCompletedOnboarding ? (homePath !== "/" ? <Navigate to={homePath} replace /> : <Layout />) : <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />}>
+            <Route path="/" element={<RootGate isAuthenticated={isAuthenticated} hasCompletedOnboarding={hasCompletedOnboarding} restorePath={restorePath} />}>
               <Route index element={<Dashboard />} />
               <Route path="leads" element={<Leads />} />
               <Route path="leads/:id" element={<LeadDetail />} />
