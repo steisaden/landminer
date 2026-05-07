@@ -38,6 +38,20 @@ function MapUpdater({ center, zoom }: { center: [number, number], zoom: number }
   return null;
 }
 
+function MapSizer({ deps }: { deps: unknown[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const raf = window.requestAnimationFrame(() => {
+      map.invalidateSize();
+    });
+
+    return () => window.cancelAnimationFrame(raf);
+  }, [map, ...deps]);
+
+  return null;
+}
+
 export default function MapPage() {
   const { leads, opportunities, hiddenSignals } = useAppStore();
   const navigate = useNavigate();
@@ -57,8 +71,8 @@ export default function MapPage() {
   const [zoom, setZoom] = useState(initialLat && initialLng ? 14 : 4);
 
   const allItemsRaw = [
-    ...leads.filter((l) => l.lat && l.lng).map((l) => ({ ...l, type: 'lead' as const })),
-    ...opportunities.filter((o) => o.lat && o.lng).map((o) => ({ ...o, type: 'opportunity' as const }))
+    ...leads.filter((l) => l.lat !== undefined && l.lng !== undefined).map((l) => ({ ...l, type: 'lead' as const })),
+    ...opportunities.filter((o) => o.lat !== undefined && o.lng !== undefined).map((o) => ({ ...o, type: 'opportunity' as const }))
   ];
 
   let allItems = allItemsRaw;
@@ -154,7 +168,7 @@ export default function MapPage() {
   };
 
   return (
-    <div className="flex flex-col h-full -m-6 md:-m-8">
+    <div className="flex flex-col min-h-[calc(100vh-8rem)] -m-6 md:-m-8">
       <div className="bg-white border-b px-6 py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 z-10 shadow-sm relative">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
@@ -220,17 +234,18 @@ export default function MapPage() {
         />
       </div>
 
-      <div className="flex-1 relative bg-slate-100">
+      <div className="flex-1 relative bg-slate-100 min-h-[32rem]">
         <MapContainer center={centerToUse} zoom={zoom} className="h-full w-full absolute inset-0 z-0">
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           />
           <MapUpdater center={centerToUse} zoom={zoom} />
-          
+          <MapSizer deps={[centerToUse[0], centerToUse[1], zoom, showHeatmap, allItems.length]} />
+
           {showHeatmap && (
              <HeatmapLayer 
-                points={opportunities.filter(o => o.lat && o.lng).map(o => [o.lat!, o.lng!, (o.opportunityScore / 100) * 1.5])} 
+                points={opportunities.filter(o => o.lat !== undefined && o.lng !== undefined).map(o => [o.lat!, o.lng!, (o.opportunityScore / 100) * 1.5])} 
              />
           )}
 

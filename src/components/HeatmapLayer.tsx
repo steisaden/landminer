@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet.heat";
@@ -9,10 +9,30 @@ interface HeatmapLayerProps {
 
 export function HeatmapLayer({ points }: HeatmapLayerProps) {
   const map = useMap();
+  const [isMapSized, setIsMapSized] = useState(false);
 
   useEffect(() => {
-    if (!points || points.length === 0) return;
-    
+    let frame = 0;
+    const syncSize = () => {
+      map.invalidateSize();
+      const size = map.getSize();
+      if (size.x > 0 && size.y > 0) {
+        setIsMapSized(true);
+        return;
+      }
+      frame = window.requestAnimationFrame(syncSize);
+    };
+
+    syncSize();
+
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [map]);
+
+  useEffect(() => {
+    if (!isMapSized || !points || points.length === 0) return;
+
     // @ts-ignore - leaflet.heat types
     const heat = L.heatLayer(points, {
       radius: 25,
@@ -31,7 +51,7 @@ export function HeatmapLayer({ points }: HeatmapLayerProps) {
     return () => {
       map.removeLayer(heat);
     };
-  }, [map, points]);
+  }, [map, points, isMapSized]);
 
   return null;
 }

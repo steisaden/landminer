@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Suspense, lazy } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { Suspense, lazy, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { useAppStore } from "./store/useAppStore";
 import { FirebaseProvider } from "./components/FirebaseProvider";
@@ -24,19 +24,38 @@ const DriveForDollars = lazy(() => import("./pages/DriveForDollars"));
 const Contracts = lazy(() => import("./pages/Contracts"));
 const ChatWithPipeline = lazy(() => import("./pages/ChatWithPipeline"));
 
+const LAST_ROUTE_KEY = "landminer:last-route";
+
+function RouteMemory({ isAuthenticated, hasCompletedOnboarding }: { isAuthenticated: boolean; hasCompletedOnboarding: boolean }) {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!isAuthenticated || !hasCompletedOnboarding) return;
+    const path = `${location.pathname}${location.search}${location.hash}`;
+    if (path !== "/login" && path !== "/onboarding") {
+      sessionStorage.setItem(LAST_ROUTE_KEY, path);
+    }
+  }, [hasCompletedOnboarding, isAuthenticated, location.hash, location.pathname, location.search]);
+
+  return null;
+}
+
 export default function App() {
   const { isAuthenticated, hasCompletedOnboarding } = useAppStore();
+  const resumePath = typeof window !== "undefined" ? sessionStorage.getItem(LAST_ROUTE_KEY) : null;
+  const homePath = resumePath && resumePath !== "/login" && resumePath !== "/onboarding" ? resumePath : "/";
 
   return (
     <FirebaseProvider>
       <Router>
+        <RouteMemory isAuthenticated={isAuthenticated} hasCompletedOnboarding={hasCompletedOnboarding} />
         <Suspense fallback={<div className="p-6 text-sm text-slate-500">Loading…</div>}>
           <Routes>
             <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to={hasCompletedOnboarding ? "/" : "/onboarding"} />} />
             <Route path="/onboarding" element={isAuthenticated && !hasCompletedOnboarding ? <Onboarding /> : <Navigate to={isAuthenticated ? "/" : "/login"} />} />
 
             {/* Protected Routes */}
-            <Route path="/" element={isAuthenticated && hasCompletedOnboarding ? <Layout /> : <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />}>
+            <Route path="/" element={isAuthenticated && hasCompletedOnboarding ? (homePath !== "/" ? <Navigate to={homePath} replace /> : <Layout />) : <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />}>
               <Route index element={<Dashboard />} />
               <Route path="leads" element={<Leads />} />
               <Route path="leads/:id" element={<LeadDetail />} />
