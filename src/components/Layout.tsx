@@ -29,7 +29,7 @@ export function Layout() {
               />
               <SheetContent side="left" className="w-[84vw] max-w-sm bg-slate-900 text-white border-slate-800 p-0">
                 <div className="p-6 flex items-center gap-3 border-b border-slate-800">
-                  <Brand variant="icon" className="min-w-0" />
+                  <Brand variant="logo" className="min-w-0" imageClassName="h-20 w-auto" />
                   <div>
                     <p className="font-semibold text-white">Navigate</p>
                   </div>
@@ -58,7 +58,6 @@ export function Layout() {
               <h1 className="sr-only">Mobile navigation</h1>
             </div>
           </div>
-
           <div className="flex-1 sm:max-w-2xl">
             <GlobalSearch />
           </div>

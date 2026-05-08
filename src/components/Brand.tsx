@@ -1,6 +1,7 @@
 type BrandProps = {
   variant?: "logo" | "icon";
   className?: string;
+  imageClassName?: string;
   showLabel?: boolean;
 };
 
@@ -9,7 +10,7 @@ const BRAND_ASSETS = {
   icon: "/landminer_primary_icon.png",
 };
 
-export function Brand({ variant = "logo", className = "", showLabel = false }: BrandProps) {
+export function Brand({ variant = "logo", className = "", imageClassName = "", showLabel = false }: BrandProps) {
   const src = BRAND_ASSETS[variant];
 
   return (
@@ -17,7 +18,7 @@ export function Brand({ variant = "logo", className = "", showLabel = false }: B
       <img
         src={src}
         alt={variant === "logo" ? "LandMiner CRM" : "LandMiner CRM icon"}
-        className={variant === "logo" ? "h-12 w-auto object-contain" : "h-10 w-10 rounded-xl object-contain"}
+        className={variant === "logo" ? `h-12 w-auto object-contain ${imageClassName}` : `h-10 w-10 rounded-xl object-contain ${imageClassName}`}
         draggable={false}
       />
       {showLabel ? (
