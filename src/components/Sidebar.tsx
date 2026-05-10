@@ -65,8 +65,8 @@ export function Sidebar() {
 
   return (
     <aside className="hidden lg:flex w-64 bg-slate-900 flex-col shrink-0 h-full">
-      <div className="p-6">
-        <Brand variant="logo" className="items-center" imageClassName="h-20 w-auto" />
+      <div className="p-0">
+        <Brand variant="logo" className="items-center" imageClassName="h-18 w-auto" />
       </div>
       <SidebarNav />
       <div className="p-4 space-y-4">
